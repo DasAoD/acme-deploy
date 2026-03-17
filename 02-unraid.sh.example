@@ -1,0 +1,30 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+echo "Starte unraid-Deployment"
+
+DOMAIN_DIR="/path/to/acme.sh   # <-- adjust/example.com"
+PORT=3785
+
+# Zielsysteme
+hosts=("nas1.example.com" "nas1-backup.example.com" "nas3.example.com")
+
+for host in "${hosts[@]}"; do
+  
+  # Hostname extrahieren ohne Domain
+  short_host="${host%%.*}"  # z. B. nas1
+
+  BUNDLE="$DOMAIN_DIR/${short_host}_unraid_bundle.pem"
+  REMOTE_PATH="/boot/config/ssl/certs/$(basename "$BUNDLE")"
+
+  # Zertifikat bündeln (immer neu erzeugen)
+  cat "$DOMAIN_DIR/fullchain.cer" "$DOMAIN_DIR/example.com.key" > "$BUNDLE"
+
+  # Kombinierter Befehl: rsync und nginx reload (unterdrückt Ausgabe)
+  CMD="
+    rsync -az --quiet --no-owner --no-group -e 'ssh -p $PORT' '$BUNDLE' '$host:$REMOTE_PATH' &&
+    ssh -p $PORT '$host' '/etc/rc.d/rc.nginx reload' >/dev/null 2>&1
+  "
+
+  log_status "unraid $host" "$CMD"
+done

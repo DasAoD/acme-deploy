@@ -1,0 +1,27 @@
+#!/bin/bash
+. /path/to/acme.sh   # <-- adjust/local-deploy/common.sh
+
+echo "Starte wgdashboard-Deployment"
+
+HOST="vpn.example.com"
+REMOTE="root@$HOST"
+PORT=3785
+
+# Zertifikate mit eigenen Namen (z. B. für WGDashboard)
+CERT_SRC="/path/to/acme.sh   # <-- adjust/example.com/fullchain.cer"
+KEY_SRC="/path/to/acme.sh   # <-- adjust/example.com/example.com.key"
+CERT_DEST="/etc/nginx/certs/wgd-cert.pem"
+KEY_DEST="/etc/nginx/certs/wgd-key.pem"
+
+# Befehlskette für log_status
+CMD="
+rsync -az -e 'ssh -p $PORT' \"$CERT_SRC\" \"$REMOTE:$CERT_DEST\" >/dev/null &&
+rsync -az -e 'ssh -p $PORT' \"$KEY_SRC\" \"$REMOTE:$KEY_DEST\" >/dev/null &&
+ssh -p $PORT $REMOTE \"
+  chown root:root $CERT_DEST $KEY_DEST &&
+  chmod 640 $CERT_DEST $KEY_DEST &&
+  systemctl reload nginx
+\" >/dev/null
+"
+
+log_status "wgdashboard $HOST" "$CMD"

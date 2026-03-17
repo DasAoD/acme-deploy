@@ -1,0 +1,44 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+echo "Starte technitium-Deployment"
+
+DOMAIN_DIR="/path/to/acme.sh   # <-- adjust/example.com"
+CERT="$DOMAIN_DIR/fullchain.cer"
+KEY="$DOMAIN_DIR/example.com.key"
+PORT=3785
+REMOTE_PFX="/etc/dns/technitium.pfx"
+
+# Zielsysteme (eigener Host zuletzt!)
+hosts=("dns2.example.com" "vpn.example.com" "dns1.example.com")
+
+for host in "${hosts[@]}"; do
+
+  if [[ "$host" == "$(hostname -f)" || "$host" == "$(hostname -s)" ]]; then
+    log_status "technitium $host" "
+      cat \"$CERT\" > /tmp/cert.pem &&
+      cat \"$KEY\" > /tmp/key.pem &&
+      openssl pkcs12 -export -out '$REMOTE_PFX' -inkey /tmp/key.pem -in /tmp/cert.pem -certfile /tmp/cert.pem -passout pass: >/dev/null 2>&1 &&
+      chown root:root '$REMOTE_PFX' &&
+      chmod 600 '$REMOTE_PFX' &&
+      rm /tmp/cert.pem /tmp/key.pem &&
+      systemctl restart dns.service
+    "
+  else
+    log_status "technitium $host" "
+      ssh -p $PORT $host \"
+        cat > /tmp/cert.pem <<EOF
+$(cat "$CERT")
+EOF
+        cat > /tmp/key.pem <<EOF
+$(cat "$KEY")
+EOF
+        openssl pkcs12 -export -out '$REMOTE_PFX' -inkey /tmp/key.pem -in /tmp/cert.pem -certfile /tmp/cert.pem -passout pass: >/dev/null 2>&1 &&
+        chown root:root '$REMOTE_PFX' &&
+        chmod 600 '$REMOTE_PFX' &&
+        rm /tmp/cert.pem /tmp/key.pem &&
+        systemctl restart dns.service
+      \"
+    "
+  fi
+done

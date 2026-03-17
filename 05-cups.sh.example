@@ -1,0 +1,26 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+echo "Starte cups-Deployment"
+
+# Lokaler Hostname
+HOST="dns1.example.com"
+
+# Pfade
+CERT_SRC="/path/to/acme.sh   # <-- adjust/example.com/fullchain.cer"
+KEY_SRC="/path/to/acme.sh   # <-- adjust/example.com/example.com.key"
+
+CERT_DST="/etc/cups/ssl/$HOST.crt"
+KEY_DST="/etc/cups/ssl/$HOST.key"
+
+# Befehl
+CMD="
+  cp '$CERT_SRC' '$CERT_DST' &&
+  cp '$KEY_SRC' '$KEY_DST' &&
+  chown root:lp '$CERT_DST' '$KEY_DST' &&
+  chmod 644 '$CERT_DST' &&
+  chmod 640 '$KEY_DST' &&
+  systemctl restart cups
+"
+
+log_status "cups $HOST" "$CMD"

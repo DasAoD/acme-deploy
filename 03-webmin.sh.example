@@ -1,0 +1,42 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+CERT="/path/to/acme.sh   # <-- adjust/example.com/example.com.cer"
+KEY="/path/to/acme.sh   # <-- adjust/example.com/example.com.key"
+FULL="/etc/webmin/miniserv.pem"
+BUNDLE="/tmp/webmin_bundle.pem"
+BACKUP="$FULL.bak.$(date +%F_%T)"
+
+echo "Starte webmin-Deployment"
+
+# Lokaler Host
+COMPONENT="webmin dns1.example.com"
+log_status "$COMPONENT" "
+  cat '$KEY' '$CERT' > '$BUNDLE' &&
+  cp '$FULL' '$BACKUP' &&
+  cp '$BUNDLE' '$FULL' &&
+  systemctl restart webmin
+"
+
+# Remote Hosts
+declare -A REMOTE_WEBMINS=(
+  [dns2.example.com]=3785
+  [vpn.example.com]=3785
+  [host1.example.com]=3785
+  [host2.example.com]=3785
+)
+
+for host in "${!REMOTE_WEBMINS[@]}"; do
+  port=${REMOTE_WEBMINS[$host]}
+  COMPONENT_REMOTE="webmin $host"
+
+  log_status "$COMPONENT_REMOTE" "
+    rsync -e 'ssh -p $port' -az --quiet '$BUNDLE' root@$host:/etc/webmin/miniserv.pem &&
+    ssh -p $port root@$host '
+      cp /etc/webmin/miniserv.pem /etc/webmin/miniserv.pem.bak.\$(date +%F_%T) &&
+      systemctl restart webmin
+    '
+  "
+done
+
+rm -f "$BUNDLE"

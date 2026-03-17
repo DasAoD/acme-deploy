@@ -21,16 +21,19 @@ After each successful certificate renewal, acme.sh triggers `all.sh`, which runs
 
 ```
 local-deploy/
-├── common.sh          # Shared helper: log_status()
-├── all.sh             # Orchestrator — runs all scripts in order
-├── 01-nginx.sh        # Deploy to local Nginx
-├── 02-unraid.sh       # Deploy to Unraid NAS servers (rsync/SSH)
-├── 03-webmin.sh       # Deploy to local and remote Webmin
-├── 04-wgdashboard.sh  # Deploy to remote WGDashboard (Nginx)
-├── 05-cups.sh         # Deploy to local CUPS print server
-├── 98-technitium.sh   # Deploy to Technitium DNS (PFX via SSH)
-└── 99-mail.sh         # Send HTML deployment report by email
+├── common.sh.example          # Shared helper: log_status()
+├── all.sh.example             # Orchestrator — runs all scripts in order
+├── 01-nginx.sh.example        # Deploy to local Nginx
+├── 02-unraid.sh.example       # Deploy to Unraid NAS servers (rsync/SSH)
+├── 03-webmin.sh.example       # Deploy to local and remote Webmin
+├── 04-wgdashboard.sh.example  # Deploy to remote WGDashboard (Nginx)
+├── 05-cups.sh.example         # Deploy to local CUPS print server
+├── 98-technitium.sh.example   # Deploy to Technitium DNS (PFX via SSH)
+└── 99-mail.sh.example         # Send HTML deployment report by email
 ```
+
+> The actual `.sh` files (containing your personal paths, hostnames and credentials)
+> are excluded via `.gitignore`. Copy each `.sh.example` to `.sh` and adjust the placeholders.
 
 Add your own scripts following the naming convention `XX-service.sh`. They are picked up automatically by `all.sh`.
 
@@ -38,11 +41,15 @@ Add your own scripts following the naming convention `XX-service.sh`. They are p
 
 ## Setup
 
-### 1. Copy scripts to your acme.sh deploy directory
+### 1. Clone the repository and copy the example scripts
 
 ```bash
-cp *.sh /path/to/acme.sh/local-deploy/
-chmod +x /path/to/acme.sh/local-deploy/*.sh
+git clone https://github.com/DasAoD/acme-deploy /path/to/acme.sh/local-deploy
+cd /path/to/acme.sh/local-deploy
+
+# Copy examples to actual scripts
+for f in *.sh.example; do cp "$f" "${f%.example}"; done
+chmod +x *.sh
 ```
 
 ### 2. Adjust placeholders
