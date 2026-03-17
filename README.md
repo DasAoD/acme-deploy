@@ -141,4 +141,4 @@ bash -x /path/to/acme.sh/local-deploy/all.sh 2>&1 | tee /tmp/deploy-debug.log
 
 ## License
 
-MIT
+[MIT](LICENSE)
