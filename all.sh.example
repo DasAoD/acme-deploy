@@ -1,0 +1,18 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STATUS_FILE="/log/certuser/deploy-status.log"
+SELF_SCRIPT="$(readlink -f "$0")"
+
+# Status-Datei vorbereiten
+> "$STATUS_FILE"
+
+for script in "$SCRIPT_DIR"/*.sh; do
+  [[ "$script" == "$SELF_SCRIPT" || "$script" == *common.sh || "$script" == *99-mail.sh ]] && continue
+  echo
+  "$script"
+done
+
+# Am Ende: Mail-Skript starten
+echo
+"$SCRIPT_DIR/99-mail.sh"

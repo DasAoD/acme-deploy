@@ -1,0 +1,21 @@
+# Original deploy scripts (contain personal data)
+# Only *.example versions are tracked
+*.sh
+!*.sh.example
+
+# Backup scripts
+backup/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

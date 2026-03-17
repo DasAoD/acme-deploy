@@ -1,0 +1,19 @@
+#!/bin/bash
+
+GREEN='\033[1;32m'
+RED='\033[1;31m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+log_status() {
+  local component="$1"
+  local command="$2"
+
+  if eval "$command"; then
+    echo -e "$component	✅ Erfolgreich" >> /log/certuser/deploy-status.log   # <-- adjust if needed
+    echo -e "\e[32m[OK]\e[0m $component abgeschlossen."
+  else
+    echo -e "$component	❌ Fehler beim Ausführen" >> /log/certuser/deploy-status.log   # <-- adjust if needed
+    echo -e "\e[31m[FEHLER]\e[0m $component fehlgeschlagen!" >&2
+  fi
+}

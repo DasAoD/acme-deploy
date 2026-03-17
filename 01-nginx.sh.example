@@ -1,0 +1,14 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+echo "Starte nginx-Deployment"
+
+COMPONENT="nginx dns1.example.com"
+log_status "$COMPONENT" '
+  cp /path/to/acme.sh   # <-- adjust/example.com/fullchain.cer /etc/nginx/certs/cert.pem &&
+  cp /path/to/acme.sh   # <-- adjust/example.com/example.com.key /etc/nginx/certs/key.pem &&
+  chown root:root /etc/nginx/certs/cert.pem /etc/nginx/certs/key.pem &&
+  chmod 644 /etc/nginx/certs/cert.pem &&
+  chmod 600 /etc/nginx/certs/key.pem &&
+  systemctl reload nginx
+'
