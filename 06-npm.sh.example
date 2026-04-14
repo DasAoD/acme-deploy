@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# 06-npm.sh – Deploy uliana.de wildcard cert to Nginx Proxy Manager via API
+# Part of acme-deploy framework (https://github.com/DasAoD/acme-deploy)
+#
+# Dieses Skript ist für das uliana.de-Zertifikat zuständig,
+# NICHT für intern.uliana.de. Separater Le_ReloadCmd erforderlich.
+#
+# Le_ReloadCmd für uliana.de setzen:
+#   /mnt/certuser/.acme.sh/acme.sh --config-home /mnt/certuser/.acme.sh \
+#     --install-cert -d uliana.de \
+#     --reloadcmd "/mnt/certuser/.acme.sh/local-deploy/06-npm.sh"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+# === Konfiguration ===
+NPM_URL="http://DEINE_NPM_IP:81"
+NPM_USER="admin@example.com"
+NPM_PASS="DEIN_NPM_PASSWORT"
+
+CERT_DOMAIN="example.com"
+CERT_DIR="/mnt/certuser/.acme.sh/$CERT_DOMAIN"
+CERT_FILE="$CERT_DIR/fullchain.cer"
+KEY_FILE="$CERT_DIR/$CERT_DOMAIN.key"
+
+# === Deploy-Funktion ===
+deploy_npm() {
+    # Voraussetzungen prüfen
+    [ -f "$CERT_FILE" ] || { echo "Cert nicht gefunden: $CERT_FILE" >&2; return 1; }
+    [ -f "$KEY_FILE" ]  || { echo "Key nicht gefunden: $KEY_FILE" >&2; return 1; }
+
+    # Login
+    local response token
+    response=$(curl -s --max-time 10 -X POST "$NPM_URL/api/tokens" \
+        -H "Content-Type: application/json" \
+        -d "{\"identity\":\"$NPM_USER\",\"secret\":\"$NPM_PASS\"}")
+    token=$(echo "$response" | python3 -c \
+        "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null)
+    [ -n "$token" ] || { echo "NPM-Login fehlgeschlagen" >&2; return 1; }
+
+    # Zertifikats-ID ermitteln
+    local certs cert_id
+    certs=$(curl -s --max-time 10 "$NPM_URL/api/nginx/certificates" \
+        -H "Authorization: Bearer $token")
+    cert_id=$(echo "$certs" | python3 -c "
+import sys, json
+certs = json.load(sys.stdin)
+for c in certs:
+    if '$CERT_DOMAIN' in c.get('domain_names', []):
+        print(c['id'])
+        break
+" 2>/dev/null)
+    [ -n "$cert_id" ] || { echo "Zertifikat '$CERT_DOMAIN' in NPM nicht gefunden" >&2; return 1; }
+
+    # Zertifikat hochladen
+    local upload success
+    upload=$(curl -s --max-time 30 -X POST \
+        "$NPM_URL/api/nginx/certificates/$cert_id/upload" \
+        -H "Authorization: Bearer $token" \
+        -F "certificate=@$CERT_FILE" \
+        -F "certificate_key=@$KEY_FILE")
+    success=$(echo "$upload" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print('ok' if 'certificate' in d else 'fail')" 2>/dev/null)
+
+    if [ "$success" = "ok" ]; then
+        return 0
+    else
+        local err
+        err=$(echo "$upload" | python3 -c \
+            "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message','Unbekannter Fehler'))" 2>/dev/null)
+        echo "Upload fehlgeschlagen: $err" >&2
+        return 1
+    fi
+}
+
+log_status "NPM npm.intern.example.com" "deploy_npm"
