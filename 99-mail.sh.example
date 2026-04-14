@@ -50,7 +50,7 @@ if [[ -f "$LOGFILE" ]]; then
     component=$(echo "$line" | awk '{print $1}')
     host=$(echo "$line" | awk '{print $2}')
 
-    body+="<tr style='background-color:$bgcolor;'><td>$component</td><td>$host</td><td>$status</td></tr>"
+    body+="<tr style='background-color:$bgcolor;'><td>$component</td><td style='white-space:nowrap;'>$host</td><td>$status</td></tr>"
   done < "$LOGFILE"
 else
   body+="<tr><td colspan='3'><em>Keine Logdatei gefunden</em></td></tr>"
