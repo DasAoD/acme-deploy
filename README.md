@@ -28,6 +28,7 @@ local-deploy/
 ├── 03-webmin.sh.example       # Deploy to local and remote Webmin
 ├── 04-wgdashboard.sh.example  # Deploy to remote WGDashboard (Nginx)
 ├── 05-cups.sh.example         # Deploy to local CUPS print server
+├── 06-npm.sh.example          # Deploy custom cert to Nginx Proxy Manager via API
 ├── 98-technitium.sh.example   # Deploy to Technitium DNS (PFX via SSH)
 └── 99-mail.sh.example         # Send HTML deployment report by email
 ```
@@ -135,7 +136,19 @@ bash -x /path/to/acme.sh/local-deploy/all.sh 2>&1 | tee /tmp/deploy-debug.log
 | `03-webmin.sh` | Webmin (local + remote) | Bundle PEM + rsync/SSH |
 | `04-wgdashboard.sh` | WGDashboard (remote Nginx) | rsync/SSH |
 | `05-cups.sh` | CUPS (local) | File copy + restart |
+| `06-npm.sh` | Nginx Proxy Manager | REST API upload |
 | `98-technitium.sh` | Technitium DNS | PFX via SSH + openssl |
+
+---
+
+## Notes
+
+### Scripts with separate Le_ReloadCmd
+
+Some scripts (e.g. `06-npm.sh`) deploy a **different certificate** than the one
+managed by `all.sh`. These require their own `Le_ReloadCmd` instead of being
+called by `all.sh`. See the header comment in the respective script for the
+exact command.
 
 ---
 
