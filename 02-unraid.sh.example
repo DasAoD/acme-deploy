@@ -6,13 +6,42 @@ echo "Starte unraid-Deployment"
 DOMAIN_DIR="/path/to/acme.sh   # <-- adjust/example.com"
 PORT=3785
 
-# Zielsysteme
-hosts=("nas1.example.com" "nas1-backup.example.com" "nas3.example.com")
+# Optional: Ein Host ist nur zeitweise online (z.B. Backup-NAS mit festem
+# Einschaltfenster). Ausserhalb des Fensters wird der Deploy uebersprungen
+# (Status "Uebersprungen" statt "Fehler"), ein separater Catch-up-Cron kann
+# den Deploy dann gezielt innerhalb des Fensters nachholen. Beispiel: nur
+# So 00:00 - Mo 12:00 online.
+BACKUP_WINDOW_HOST="nas1-backup.example.com"
+
+in_backup_window() {
+  local dow hour
+  dow=$(date +%u)   # 1=Mo ... 7=So
+  hour=$(date +%H)
+  if [[ "$dow" -eq 7 ]]; then
+    return 0
+  elif [[ "$dow" -eq 1 && "$hour" -lt 12 ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Zielsysteme (per UNRAID_FORCE_HOST auf einen Host einschraenkbar, fuer Catch-up-Cron)
+hosts=("nas1.example.com" "$BACKUP_WINDOW_HOST" "nas3.example.com")
+if [[ -n "${UNRAID_FORCE_HOST:-}" ]]; then
+  hosts=("$UNRAID_FORCE_HOST")
+fi
 
 for host in "${hosts[@]}"; do
-  
+
   # Hostname extrahieren ohne Domain
-  short_host="${host%%.*}"  # z. B. nas1
+  short_host="${host%%.*}"  # z. B. nas1
+
+  if [[ "$host" == "$BACKUP_WINDOW_HOST" ]] && [[ -z "${UNRAID_FORCE_HOST:-}" ]] && ! in_backup_window; then
+    echo -e "unraid $host\t⏭ Übersprungen (außerhalb Zeitfenster)" >> /path/to/deploy-status.log
+    echo -e "\e[33m[SKIP]\e[0m unraid $host übersprungen (außerhalb Online-Zeitfenster)."
+    continue
+  fi
 
   BUNDLE="$DOMAIN_DIR/${short_host}_unraid_bundle.pem"
   REMOTE_PATH="/boot/config/ssl/certs/$(basename "$BUNDLE")"
