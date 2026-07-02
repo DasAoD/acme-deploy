@@ -1,0 +1,46 @@
+#!/bin/bash
+# 07-fritzboxen.sh – Deploy wildcard cert to Fritz!Box devices
+# Part of acme-deploy framework (https://git.uliana.de/DasAoD/acme-deploy)
+#
+# Converts the key to PKCS#1/RSA "traditional" format, since FRITZ!OS only
+# accepts that key type. The device list incl. credentials lives in $CONF
+# (not part of this repo, contains personal data - see README).
+#
+# Uses the community upload script from
+# https://github.com/fschwartau/fritzbox-cert-upload (fritzbox_upload_certificate.sh)
+
+source "$(dirname "$0")/common.sh"
+
+echo "Starte fritzboxen-Deployment"
+
+SRC="/path/to/acme.sh   # <-- adjust/example.com"
+CERTDIR="/var/lib/fritzbox-cert"
+DEPLOYER="/opt/fritzbox_upload_certificate/fritzbox_upload_certificate.sh"
+CONF="/etc/fritzbox-certdeploy.conf"
+
+# Zertifikat für FRITZ!OS aufbereiten (einmalig für alle Boxen)
+log_status "fritzbox prepare" "
+  install -d -m 700 '$CERTDIR' &&
+  cp -f '$SRC/fullchain.cer' '$CERTDIR/fullchain.pem' &&
+  openssl pkey -in '$SRC/example.com.key' -out '$CERTDIR/privkey.pem' -traditional &&
+  chmod 600 '$CERTDIR'/*.pem &&
+  grep -q 'BEGIN CERTIFICATE' '$CERTDIR/fullchain.pem' &&
+  head -n1 '$CERTDIR/privkey.pem' | grep -q 'BEGIN RSA PRIVATE KEY'
+"
+
+if [[ ! -f "$CONF" ]]; then
+  echo "FEHLER: Config fehlt oder nicht lesbar: $CONF" >&2
+  exit 0
+fi
+
+# Erwartetes Format pro Zeile in $CONF: NAME;BASEURL;USER;PASS
+# z.B.: FB1;http://192.168.0.1;certdeploy;DEINPASSWORT
+while IFS=';' read -r name baseurl user pass; do
+  [[ -z "${name:-}" ]] && continue
+  [[ "${name:0:1}" == "#" ]] && continue
+
+  host_fqdn="$(echo "$name" | tr '[:upper:]' '[:lower:]').example.com"
+
+  CMD="'$DEPLOYER' -b '$baseurl' -u '$user' -p '$pass' -c '$CERTDIR'"
+  log_status "fritzbox $host_fqdn" "$CMD"
+done < "$CONF"
