@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# 06-npm.sh – Deploy uliana.de wildcard cert to Nginx Proxy Manager via API
-# Part of acme-deploy framework (https://github.com/DasAoD/acme-deploy)
+# 06-npm.sh – Deploy wildcard cert to Nginx Proxy Manager via API
+# Part of acme-deploy framework (https://git.uliana.de/DasAoD/acme-deploy)
 #
-# Dieses Skript ist für das uliana.de-Zertifikat zuständig,
-# NICHT für intern.uliana.de. Separater Le_ReloadCmd erforderlich.
-#
-# Le_ReloadCmd für uliana.de setzen:
-#   /mnt/certuser/.acme.sh/acme.sh --config-home /mnt/certuser/.acme.sh \
-#     --install-cert -d uliana.de \
-#     --reloadcmd "/mnt/certuser/.acme.sh/local-deploy/06-npm.sh"
+# Runs like every other module via all.sh, triggered by the Le_ReloadCmd
+# of the certificate configured below.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
@@ -19,7 +14,7 @@ NPM_USER="admin@example.com"
 NPM_PASS="DEIN_NPM_PASSWORT"
 
 CERT_DOMAIN="example.com"
-CERT_DIR="/mnt/certuser/.acme.sh/$CERT_DOMAIN"
+CERT_DIR="/path/to/acme.sh   # <-- adjust/$CERT_DOMAIN"
 CERT_FILE="$CERT_DIR/fullchain.cer"
 KEY_FILE="$CERT_DIR/$CERT_DOMAIN.key"
 
@@ -73,4 +68,4 @@ for c in certs:
     fi
 }
 
-log_status "NPM npm.intern.example.com" "deploy_npm"
+log_status "NPM npm.example.com" "deploy_npm"
