@@ -8,7 +8,7 @@ FROM="certdeploy@example.com   # <-- adjust"
 HOSTNAME="$(hostname -f)"
 SUBJECT="Zertifikats-Deployment am $(date '+%d.%m.%Y') auf $HOSTNAME"
 
-LOGFILE="/log/certuser/deploy-status.log"
+LOGFILE="/path/to/deploy-status.log   # <-- adjust"
 CERTFILE="/path/to/acme.sh   # <-- adjust/example.com/fullchain.cer"
 CERTCONF="/path/to/acme.sh   # <-- adjust/example.com/example.com.conf"
 
@@ -26,21 +26,33 @@ if [[ -f "$CERTCONF" ]]; then
 fi
 
 # HTML-Mailaufbau
-body="<html><body>"
-body+="<h2>Zertifikats-Deploymentbericht – $HOSTNAME</h2>"
-body+="<p><strong>Datum letzter Lauf:</strong> $(date '+%d.%m.%Y %H:%M:%S')</p>"
+# Hinweis: Nach jedem Element wird bewusst ein echter Zeilenumbruch eingefuegt.
+# HTML ignoriert das beim Rendern, aber es verhindert, dass die MTA/mail-Pipeline
+# bei einer einzigen sehr langen Zeile am RFC-5322-Limit (998 Zeichen) hart faltet
+# und dabei mitten in einem Tag umbricht.
+body="<html><body>
+"
+body+="<h2>Zertifikats-Deploymentbericht – $HOSTNAME</h2>
+"
+body+="<p><strong>Datum letzter Lauf:</strong> $(date '+%d.%m.%Y %H:%M:%S')</p>
+"
 if [[ -n "$next_renew_formatted" ]]; then
-  body+="<p><strong>Geplantes Datum nächster Lauf:</strong> ab $next_renew_formatted</p>"
+  body+="<p><strong>Geplantes Datum nächster Lauf:</strong> ab $next_renew_formatted</p>
+"
 fi
-body+="<p><strong>Zertifikat gültig bis:</strong> $expiry_formatted</p>"
+body+="<p><strong>Zertifikat gültig bis:</strong> $expiry_formatted</p>
+"
 
 # Tabellenkopf
-body+="<table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse;'>"
-body+="<tr style='background-color:#f2f2f2;'><th>Komponente</th><th>Host</th><th>Status</th></tr>"
+body+="<table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse;'>
+"
+body+="<tr style='background-color:#f2f2f2;'><th>Komponente</th><th>Host</th><th>Status</th></tr>
+"
 
 total=0
 ok=0
 fail=0
+skip=0
 
 if [[ -f "$LOGFILE" ]]; then
   while read -r line; do
@@ -58,24 +70,37 @@ if [[ -f "$LOGFILE" ]]; then
       status="❌ Fehler"
       bgcolor="#f8d7da"
       fail=$((fail + 1))
+    elif [[ "$line" == *"⏭ Übersprungen"* ]]; then
+      status="⏭ Übersprungen"
+      bgcolor="#e2e3e5"
+      skip=$((skip + 1))
     fi
 
     component=$(echo "$line" | awk '{print $1}')
     host=$(echo "$line" | awk '{print $2}')
 
-    body+="<tr style='background-color:$bgcolor;'><td>$component</td><td style='white-space:nowrap;'>$host</td><td>$status</td></tr>"
+    body+="<tr style='background-color:$bgcolor;'><td>$component</td><td style='white-space:nowrap;'>$host</td><td>$status</td></tr>
+"
   done < "$LOGFILE"
 else
-  body+="<tr><td colspan='3'><em>Keine Logdatei gefunden</em></td></tr>"
+  body+="<tr><td colspan='3'><em>Keine Logdatei gefunden</em></td></tr>
+"
 fi
 
 # Statistikzeile anhängen
-body+="</table>"
+body+="</table>
+"
 if (( total > 0 )); then
-  body+="<p style='margin-top:10px;'><strong>Gesamt:</strong> $total &nbsp;&nbsp;✅ <strong>Erfolgreich:</strong> $ok &nbsp;&nbsp;❌ <strong>Fehlgeschlagen:</strong> $fail</p>"
+  body+="<p style='margin-top:10px;'><strong>Gesamt:</strong> $total &nbsp;&nbsp;✅ <strong>Erfolgreich:</strong> $ok &nbsp;&nbsp;❌ <strong>Fehlgeschlagen:</strong> $fail"
+  if (( skip > 0 )); then
+    body+=" &nbsp;&nbsp;⏭ <strong>Übersprungen:</strong> $skip"
+  fi
+  body+="</p>
+"
 fi
 
-body+="</body></html>"
+body+="</body></html>
+"
 
 # Mail versenden
 echo "$body" | mail -a "Content-Type: text/html" -s "$SUBJECT" -r "$FROM" "$MAILTO"
