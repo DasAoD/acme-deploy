@@ -12,11 +12,12 @@ After each successful certificate renewal, acme.sh triggers `all.sh`, which runs
 
 ## Features
 
-- Modular deploy scripts — one per service (Nginx, Technitium, Unraid, Webmin, CUPS, WGDashboard, …)
+- Modular deploy scripts — one per service (Nginx, Technitium, Unraid, Webmin, CUPS, WGDashboard, Nginx Proxy Manager, Fritz!Box, …)
 - Shared `common.sh` with a reusable `log_status` helper
 - Automatic status logging per component and host
--@HUML email report with component/host/status table and summary
-- Certificate expiry date shown in the report
+- HTML email report with component/host/status table and summary
+- Certificate expiry date shown in the report, plus last-run and next-scheduled-run timestamps
+- Optional online-window support for hosts that aren't always reachable (skip + catch-up instead of a false failure)
 
 ---
 
