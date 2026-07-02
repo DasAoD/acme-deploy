@@ -10,15 +10,28 @@ SUBJECT="Zertifikats-Deployment am $(date '+%d.%m.%Y') auf $HOSTNAME"
 
 LOGFILE="/log/certuser/deploy-status.log"
 CERTFILE="/path/to/acme.sh   # <-- adjust/example.com/fullchain.cer"
+CERTCONF="/path/to/acme.sh   # <-- adjust/example.com/example.com.conf"
 
 # Zertifikatsablaufdatum extrahieren
 expiry=$(openssl x509 -enddate -noout -in "$CERTFILE" | cut -d= -f2)
 expiry_formatted=$(date -d "$expiry" '+%d.%m.%Y %H:%M:%S')
 
+# Geplantes Datum der naechsten Erneuerung aus der acme.sh-Config lesen
+next_renew_formatted=""
+if [[ -f "$CERTCONF" ]]; then
+  next_renew_str=$(grep -oP "Le_NextRenewTimeStr='\K[^']+" "$CERTCONF")
+  if [[ -n "$next_renew_str" ]]; then
+    next_renew_formatted=$(date -d "$next_renew_str" '+%d.%m.%Y %H:%M:%S' 2>/dev/null)
+  fi
+fi
+
 # HTML-Mailaufbau
 body="<html><body>"
 body+="<h2>Zertifikats-Deploymentbericht – $HOSTNAME</h2>"
-body+="<p><strong>Datum:</strong> $(date '+%d.%m.%Y %H:%M:%S')</p>"
+body+="<p><strong>Datum letzter Lauf:</strong> $(date '+%d.%m.%Y %H:%M:%S')</p>"
+if [[ -n "$next_renew_formatted" ]]; then
+  body+="<p><strong>Geplantes Datum nächster Lauf:</strong> ab $next_renew_formatted</p>"
+fi
 body+="<p><strong>Zertifikat gültig bis:</strong> $expiry_formatted</p>"
 
 # Tabellenkopf
