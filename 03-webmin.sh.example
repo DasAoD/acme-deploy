@@ -18,7 +18,8 @@ log_status "$COMPONENT" "
   systemctl restart webmin
 "
 
-# Remote Hosts
+# Remote Hosts (per DEPLOY_FORCE_HOST auf einen Host einschraenkbar, fuer
+# den generischen Catch-up-Runner)
 declare -A REMOTE_WEBMINS=(
   [dns2.example.com]=3785
   [vpn.example.com]=3785
@@ -26,9 +27,23 @@ declare -A REMOTE_WEBMINS=(
   [host2.example.com]=3785
 )
 
+if [[ -n "${DEPLOY_FORCE_HOST:-}" ]]; then
+  declare -A REMOTE_WEBMINS=( [$DEPLOY_FORCE_HOST]=3785 )
+fi
+
 for host in "${!REMOTE_WEBMINS[@]}"; do
   port=${REMOTE_WEBMINS[$host]}
   COMPONENT_REMOTE="webmin $host"
+
+  # Generischer Erreichbarkeits-Check (faengt z.B. einen Standortausfall
+  # ab). Nicht erreichbar -> ueberspringen statt Fehler + fuer den
+  # Catch-up-Cron vormerken.
+  if ! host_reachable "$host" "$port"; then
+    echo -e "$COMPONENT_REMOTE\t⏭ Übersprungen (nicht erreichbar)" >> /path/to/deploy-status.log
+    echo -e "\e[33m[SKIP]\e[0m $COMPONENT_REMOTE nicht erreichbar - für Catch-up vorgemerkt."
+    queue_pending "03-webmin.sh" "$host" "$port"
+    continue
+  fi
 
   log_status "$COMPONENT_REMOTE" "
     rsync -e 'ssh -p $port' -az --quiet '$BUNDLE' root@$host:/etc/webmin/miniserv.pem &&
@@ -37,6 +52,7 @@ for host in "${!REMOTE_WEBMINS[@]}"; do
       systemctl restart webmin
     '
   "
+  dequeue_pending "03-webmin.sh" "$host"
 done
 
 rm -f "$BUNDLE"

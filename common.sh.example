@@ -5,15 +5,42 @@ RED='\033[1;31m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
+PENDING_FILE="/path/to/deploy-pending.txt"
+
 log_status() {
   local component="$1"
   local command="$2"
 
   if eval "$command"; then
-    echo -e "$component	✅ Erfolgreich" >> /log/certuser/deploy-status.log   # <-- adjust if needed
+    echo -e "$component	✅ Erfolgreich" >> /path/to/deploy-status.log   # <-- adjust if needed
     echo -e "\e[32m[OK]\e[0m $component abgeschlossen."
   else
-    echo -e "$component	❌ Fehler beim Ausführen" >> /log/certuser/deploy-status.log   # <-- adjust if needed
+    echo -e "$component	❌ Fehler beim Ausführen" >> /path/to/deploy-status.log   # <-- adjust if needed
     echo -e "\e[31m[FEHLER]\e[0m $component fehlgeschlagen!" >&2
   fi
+}
+
+# Prueft per SSH, ob ein Host gerade erreichbar ist (kurzer Timeout, kein
+# Passwort-Prompt). Rueckgabe 0 = erreichbar, ungleich 0 = nicht erreichbar.
+host_reachable() {
+  local host="$1"
+  local port="${2:-22}"
+  ssh -p "$port" -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$host" true >/dev/null 2>&1
+}
+
+# Merkt einen wegen Nichterreichbarkeit uebersprungenen Host fuer den
+# Catch-up-Cron vor (dedupliziert, Format: modul|host|port).
+queue_pending() {
+  local module="$1" host="$2" port="$3"
+  local entry="$module|$host|$port"
+  touch "$PENDING_FILE"
+  grep -qxF "$entry" "$PENDING_FILE" || echo "$entry" >> "$PENDING_FILE"
+}
+
+# Entfernt einen Host wieder aus der Pending-Liste (nach erfolgreichem
+# Catch-up oder nach einem regulaeren Deploy-Versuch, egal ob erfolgreich).
+dequeue_pending() {
+  local module="$1" host="$2"
+  [[ -f "$PENDING_FILE" ]] || return 0
+  sed -i "\#^${module}|${host}|#d" "$PENDING_FILE"
 }

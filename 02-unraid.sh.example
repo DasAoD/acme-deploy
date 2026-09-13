@@ -26,10 +26,13 @@ in_backup_window() {
   fi
 }
 
-# Zielsysteme (per UNRAID_FORCE_HOST auf einen Host einschraenkbar, fuer Catch-up-Cron)
+# Zielsysteme (per UNRAID_FORCE_HOST/DEPLOY_FORCE_HOST auf einen Host
+# einschraenkbar, fuer Catch-up-Cron bzw. den generischen Catch-up-Runner)
 hosts=("nas1.example.com" "$BACKUP_WINDOW_HOST" "nas3.example.com")
 if [[ -n "${UNRAID_FORCE_HOST:-}" ]]; then
   hosts=("$UNRAID_FORCE_HOST")
+elif [[ -n "${DEPLOY_FORCE_HOST:-}" ]]; then
+  hosts=("$DEPLOY_FORCE_HOST")
 fi
 
 for host in "${hosts[@]}"; do
@@ -40,6 +43,16 @@ for host in "${hosts[@]}"; do
   if [[ "$host" == "$BACKUP_WINDOW_HOST" ]] && [[ -z "${UNRAID_FORCE_HOST:-}" ]] && ! in_backup_window; then
     echo -e "unraid $host\t⏭ Übersprungen (außerhalb Zeitfenster)" >> /path/to/deploy-status.log
     echo -e "\e[33m[SKIP]\e[0m unraid $host übersprungen (außerhalb Online-Zeitfenster)."
+    continue
+  fi
+
+  # Generischer Erreichbarkeits-Check (faengt z.B. einen Standortausfall
+  # ab). Nicht erreichbar -> ueberspringen statt Fehler + fuer den
+  # Catch-up-Cron vormerken.
+  if ! host_reachable "$host" "$PORT"; then
+    echo -e "unraid $host\t⏭ Übersprungen (nicht erreichbar)" >> /path/to/deploy-status.log
+    echo -e "\e[33m[SKIP]\e[0m unraid $host nicht erreichbar - für Catch-up vorgemerkt."
+    queue_pending "02-unraid.sh" "$host" "$PORT"
     continue
   fi
 
@@ -56,4 +69,5 @@ for host in "${hosts[@]}"; do
   "
 
   log_status "unraid $host" "$CMD"
+  dequeue_pending "02-unraid.sh" "$host"
 done
