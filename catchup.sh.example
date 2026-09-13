@@ -1,0 +1,56 @@
+#!/bin/bash
+# Catch-up-Runner: prueft periodisch (per Cron) alle Hosts, die bei einem
+# regulaeren all.sh-Lauf als "nicht erreichbar" markiert und in der
+# Pending-Liste vorgemerkt wurden. Ist ein Host inzwischen wieder online,
+# wird nur dieses eine Modul fuer nur diesen einen Host erneut ausgefuehrt
+# (DEPLOY_FORCE_HOST), und bei Erfolg eine kurze Info-Mail verschickt.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+[[ -s "$PENDING_FILE" ]] || exit 0
+
+MAILTO="admins@example.com"
+FROM="deploy@example.com"
+HOSTNAME_FQDN="$(hostname -f)"
+
+caught_up=()
+
+while IFS='|' read -r module host port; do
+  [[ -z "$module" ]] && continue
+
+  if host_reachable "$host" "$port"; then
+    echo "Catch-up: $module für $host"
+    DEPLOY_FORCE_HOST="$host" "$SCRIPT_DIR/$module"
+
+    # Modul hat sich beim Deploy-Versuch selbst aus der Pending-Liste
+    # ausgetragen (Erfolg oder echter Fehler) -> als nachgeholt zaehlen.
+    # Bleibt der Eintrag bestehen, war der Host beim Modul-internen
+    # erneuten Check doch noch nicht erreichbar (Flapping) - dann bleibt
+    # er fuer den naechsten Lauf vorgemerkt.
+    if ! grep -qxF "$module|$host|$port" "$PENDING_FILE" 2>/dev/null; then
+      caught_up+=("$module: $host")
+    fi
+  fi
+done < "$PENDING_FILE"
+
+if (( ${#caught_up[@]} > 0 )); then
+  body="<html><body>
+"
+  body+="<h2>Zertifikats-Nachdeployment – $HOSTNAME_FQDN</h2>
+"
+  body+="<p>Folgende zuvor nicht erreichbare Hosts wurden soeben nachträglich mit dem aktuellen Zertifikat versorgt:</p>
+"
+  body+="<ul>
+"
+  for entry in "${caught_up[@]}"; do
+    body+="<li>$entry</li>
+"
+  done
+  body+="</ul>
+"
+  body+="</body></html>
+"
+  echo "$body" | mail -a "Content-Type: text/html" -s "Zertifikats-Nachdeployment auf $HOSTNAME_FQDN" -r "$FROM" "$MAILTO"
+  echo "Nachdeployment-Mail an $MAILTO versendet (${#caught_up[@]} Host(s))."
+fi

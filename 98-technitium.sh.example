@@ -9,12 +9,29 @@ KEY="$DOMAIN_DIR/example.com.key"
 PORT=3785
 REMOTE_PFX="/etc/dns/technitium.pfx"
 
-# Zielsysteme (eigener Host zuletzt!)
+# Zielsysteme (eigener Host zuletzt!) - per DEPLOY_FORCE_HOST auf einen
+# Host einschraenkbar, fuer den generischen Catch-up-Runner
 hosts=("dns2.example.com" "vpn.example.com" "dns1.example.com")
+if [[ -n "${DEPLOY_FORCE_HOST:-}" ]]; then
+  hosts=("$DEPLOY_FORCE_HOST")
+fi
 
 for host in "${hosts[@]}"; do
 
-  if [[ "$host" == "$(hostname -f)" || "$host" == "$(hostname -s)" ]]; then
+  is_local=false
+  [[ "$host" == "$(hostname -f)" || "$host" == "$(hostname -s)" ]] && is_local=true
+
+  # Generischer Erreichbarkeits-Check fuer Remote-Hosts (faengt z.B. einen
+  # Standortausfall ab). Nicht erreichbar -> ueberspringen statt Fehler +
+  # fuer den Catch-up-Cron vormerken.
+  if ! $is_local && ! host_reachable "$host" "$PORT"; then
+    echo -e "technitium $host\t⏭ Übersprungen (nicht erreichbar)" >> /path/to/deploy-status.log
+    echo -e "\e[33m[SKIP]\e[0m technitium $host nicht erreichbar - für Catch-up vorgemerkt."
+    queue_pending "98-technitium.sh" "$host" "$PORT"
+    continue
+  fi
+
+  if $is_local; then
     log_status "technitium $host" "
       cat \"$CERT\" > /tmp/cert.pem &&
       cat \"$KEY\" > /tmp/key.pem &&
@@ -41,4 +58,5 @@ EOF
       \"
     "
   fi
+  dequeue_pending "98-technitium.sh" "$host"
 done

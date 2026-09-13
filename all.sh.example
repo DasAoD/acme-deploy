@@ -1,14 +1,14 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STATUS_FILE="/log/certuser/deploy-status.log"
+STATUS_FILE="/path/to/deploy-status.log"
 SELF_SCRIPT="$(readlink -f "$0")"
 
 # Status-Datei vorbereiten
 > "$STATUS_FILE"
 
 for script in "$SCRIPT_DIR"/*.sh; do
-  [[ "$script" == "$SELF_SCRIPT" || "$script" == *common.sh || "$script" == *99-mail.sh ]] && continue
+  [[ "$script" == "$SELF_SCRIPT" || "$script" == *common.sh || "$script" == *99-mail.sh || "$script" == *catchup.sh ]] && continue
   echo
   "$script"
 done
