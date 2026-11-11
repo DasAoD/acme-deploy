@@ -43,6 +43,7 @@ for host in "${hosts[@]}"; do
   if [[ "$host" == "$BACKUP_WINDOW_HOST" ]] && [[ -z "${UNRAID_FORCE_HOST:-}" ]] && ! in_backup_window; then
     echo -e "unraid $host\t⏭ Übersprungen (außerhalb Zeitfenster)" >> /path/to/deploy-status.log
     echo -e "\e[33m[SKIP]\e[0m unraid $host übersprungen (außerhalb Online-Zeitfenster)."
+    queue_pending "02-unraid.sh" "$host" "$PORT"
     continue
   fi
 
