@@ -1,0 +1,31 @@
+#!/bin/bash
+source "$(dirname "$0")/common.sh"
+
+echo "Starte drucker-Deployment"
+
+HOST="printer.example.com"
+IP="192.168.x.x   # <-- adjust"
+
+DOMAIN_DIR="/path/to/acme.sh/example.com   # <-- adjust"
+CERT="$DOMAIN_DIR/fullchain.cer"
+KEY="$DOMAIN_DIR/example.com.key"
+
+# HP LaserJet M281fdw: legacy PFX (RC2/SHA1), leaf and intermediate split,
+# upload without auth (no EWS password set). Success = redirect to ...CertsSSFinish...
+deploy_printer() {
+  local tmp pw loc
+  tmp=$(mktemp -d) || return 1
+  pw=$(openssl rand -hex 12)
+  (
+    cd "$tmp" &&
+    csplit -s -z -f cert- "$CERT" '/-----BEGIN CERTIFICATE-----/' '{*}' &&
+    openssl pkcs12 -export -legacy -out printer.pfx -inkey "$KEY" -in cert-00 -certfile cert-01 -passout "pass:$pw"
+  ) >/dev/null 2>&1 || { rm -rf "$tmp"; return 1; }
+  loc=$(curl -sk -o /dev/null -w '%{redirect_url}' --max-time 30 -X POST \
+    "https://$IP/hp/device/Certificate.pfx" \
+    --form "upload=@$tmp/printer.pfx" --form "Password=$pw")
+  rm -rf "$tmp"
+  [[ "$loc" == *CertsSSFinish* && "$loc" != *error=* ]]
+}
+
+log_status "drucker $HOST" "deploy_printer"

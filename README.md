@@ -110,6 +110,7 @@ done
 | `05-cups.sh` | Deploy to a local CUPS instance |
 | `06-npm.sh` | Deploy to Nginx Proxy Manager via its API |
 | `07-fritzboxen.sh` | Deploy to one or more Fritz!Box devices (converts the key to the RSA format FRITZ!OS requires) |
+| `08-drucker.sh` | Deploy to an HP Color LaserJet M281fdw (legacy RC2/SHA1 PFX upload via the EWS endpoint) |
 | `98-technitium.sh` | Deploy to Technitium DNS as a PFX bundle via SSH; remote hosts support the generic unreachable-host catch-up |
 | `99-mail.sh` | Builds and sends the HTML status report |
 | `catchup.sh` | Standalone, cron-driven: rechecks hosts queued as unreachable and redeploys to just those hosts once they're back online, with its own short confirmation email |
