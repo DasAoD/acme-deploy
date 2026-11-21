@@ -2,3 +2,4 @@
 
 - Versioniert sind nur die `*.sh.example`-Templates. Die echten `*.sh` (Hosts, Pfade, Zugangsdaten) stehen bewusst in `.gitignore`: nie committen, bei Modul-Änderungen prüfen, ob Template oder Produktiv-Version gemeint ist.
 - Module: zweistelliges Prefix steuert die Reihenfolge (`98-`/`99-` reserviert für spät laufende Module und das Mail-Modul). Logging über `log_status "component host" "command"` aus `common.sh`.
+- Commits: genau ein Trailer `Co-authored-by: Claude <claude@anthropic.com>`. Keine weiteren Trailer anhängen (kein `Co-Authored-By: Claude Sonnet …`, kein `Claude-Session:`); vor dem Push per `git log -1 --format=%B` prüfen und bei Duplikaten mit `git commit --amend` bereinigen.
